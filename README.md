@@ -63,3 +63,68 @@ A topology-guided Vision Mamba that scans visual features along contour normals,
 - **层间稠密扫描：** 在相邻等高线之间加入横向和纵向扫描，补充稀疏法线没有读取到的区域。稠密位置得到的状态先汇聚到附近的等高线采样点，再进入轮廓扫描和拓扑传播。
 
 - **自适应采样：** 根据轮廓弯曲程度、特征变化和等高线密度调整采样点数量。复杂区域保留更多 Token，平滑区域减少计算。
+
+# TopoContour-Mamba
+
+## Overview
+
+TopoContour-Mamba explores how the spatial structure of an image can guide the scan order of Mamba. An image is first converted into a structural intensity map, from which contours are extracted at multiple levels. The contour levels define the order of structural change, while disconnected contours at the same level remain parallel because they have no natural temporal order.
+
+The model focuses on three spatial relationships: normal-direction scans capture changes between neighboring contours, contour scans integrate information along the same contour, and topology-guided propagation carries states through contour continuation, splitting, and merging. Existing methods can be used to generate the structural map and contours in the initial version; the main focus is the subsequent sampling, aggregation, and Mamba state propagation.
+
+## Method
+
+1. **Extract multi-level contours.** Obtain contours at multiple uniformly spaced levels so that the distance between neighboring contours reflects the strength of local structural variation.
+
+2. **Sample points sparsely along each contour.** Select points according to true arc length and read color, texture, and edge features from a shallow feature map. More points can be retained in complex regions, while smooth regions use fewer visual tokens.
+
+3. **Connect neighboring contours along the normal direction.** From each contour point, extend in both normal directions until reaching the nearest contours at the adjacent upper and lower levels. The normal segment therefore follows the actual spacing between contours instead of using a fixed local window.
+
+4. **Aggregate inter-level information at the contour point.** Features on both sides are scanned from the neighboring contours toward the current point and fused there. This captures visual information inside and outside the contour together with the transition between contour levels; densely packed contours usually indicate faster local variation.
+
+5. **Scan bidirectionally along each contour.** Arrange sampled points in their true contour order and propagate information in both directions. For a closed contour, a structurally informative point can be selected as the aggregation point, where the two directional states are fused into a contour representation.
+
+6. **Propagate states through contour topology.** Independent contours at the same level are processed in parallel, while states across levels follow actual continuation, split, and merge relationships.
+
+7. **Perform image classification.** Aggregate the topology-aware contour states and pass the resulting representation to a classification head.
+
+## Branch-State Propagation
+
+Contour topology changes across levels in three main ways:
+
+1. **Continuation:** When one contour evolves into another contour at the next level, its state is passed forward and fused with the new contour's own scan result.
+
+2. **Split:** When one parent contour divides into several child contours, the parent state is passed to every branch. Each child then updates it using its own features, preserving their shared origin while allowing different representations.
+
+3. **Merge:** When several contours merge, their parent states are weighted according to their relationships with the new contour and then fused before propagation continues.
+
+Splitting is not treated as simple state copying, and merging is not handled by direct summation. Trainable gates determine how much information should be preserved from each branch. For classification, topology propagation may also be performed in both low-to-high and high-to-low level directions before the two results are fused.
+
+## Architecture
+
+```text
+1. Image features and multi-level contours
+                    ↓
+2. Sparse contour sampling
+                    ↓
+3. Normal scans between neighboring contours
+                    ↓
+4. Bidirectional contour scanning and aggregation
+                    ↓
+5. Continuation, split, and merge state propagation
+                    ↓
+6. Global aggregation and image classification
+```
+
+The normal Mamba models changes between neighboring levels, the contour Mamba models relationships within each contour, and the topology module models the global structure. The scan order is determined by image content rather than fixed horizontal, vertical, or snake-like paths.
+
+## Future Extensions
+
+- **Trainable structural map:** A convolutional module can generate a same-resolution structural map, while softened level representations connect it to the sampling stage so that the classification loss can propagate back to the map generator. The initial version can keep this stage fixed and train only the feature extractor, Mamba modules, branch gates, and classifier.
+
+- **Principal-direction ring scanning:** Concentric rings are built around a contour sample point, a local principal direction aligns the start, end, and aggregation position of every ring, bidirectional Mamba scans are first performed along each ring, and the resulting states are then propagated from the outer rings toward the center, with ring scans activated only at key points or sampled more sparsely on outer rings to reduce overlap.
+
+- **Dense inter-contour scanning:** Horizontal and vertical scans can be added inside the regions between neighboring contours to capture information missed by sparse normal segments. The dense states are first aggregated into nearby contour points before entering contour scanning and topology propagation.
+
+- **Adaptive sampling:** The number of contour samples can be adjusted according to curvature, feature variation, and contour density. Complex regions retain more tokens, while smooth regions use less computation.
+
