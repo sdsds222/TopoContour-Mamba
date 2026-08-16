@@ -102,19 +102,19 @@ Splitting is not treated as simple state copying, and merging is not handled by 
 
 ## Architecture
 
-```text
+
 1. Image features and multi-level contours
-                    ↓
+                    
 2. Sparse contour sampling
-                    ↓
+                    
 3. Normal scans between neighboring contours
-                    ↓
+                    
 4. Bidirectional contour scanning and aggregation
-                    ↓
+                    
 5. Continuation, split, and merge state propagation
-                    ↓
+                    
 6. Global aggregation and image classification
-```
+
 
 The normal Mamba models changes between neighboring levels, the contour Mamba models relationships within each contour, and the topology module models the global structure. The scan order is determined by image content rather than fixed horizontal, vertical, or snake-like paths.
 
