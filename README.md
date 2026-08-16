@@ -1,130 +1,134 @@
 # TopoContour-Mamba
-A topology-guided Vision Mamba that scans visual features along contour normals, contour paths, and contour split–merge structures.
-# 基于等高线拓扑的 Mamba 视觉扫描
 
-## 项目简介
-
-本项目尝试让图像自身的空间结构决定 Mamba 的扫描顺序。图像先被转换为结构强度图，再提取多个层级的等高线。等高线层级表示结构变化的顺序；同一层级中互不相连的等高线没有天然先后关系，因此保持并行。
-
-模型主要处理三种空间关系：沿法线读取相邻等高线之间的变化，沿轮廓整合同一条等高线的信息，再沿等高线的延续、分裂和汇合关系传播全局状态。热力图和等高线可以先由现有方法生成，本项目重点研究后续的采样、汇集和 Mamba 状态传播。
-
-## 方法流程
-
-1. **提取分层等高线。** 从结构强度图中获得多个层级的等高线，并保持层级间隔一致，使轮廓间距能够反映局部变化强弱。
-
-2. **在等高线上稀疏采样。** 按照真实弧长选择采样点，并从浅层特征图中读取颜色、纹理和边缘特征。结构变化明显的位置可以采得更密，平滑位置可以采得更稀，从而减少无意义的视觉 Token。
-
-3. **沿法线连接相邻等高线。** 从当前采样点沿法线向两侧延伸，直到分别到达上下相邻层级的等高线。法线段长度由真实轮廓间距决定，不使用固定大小的局部窗口。
-
-4. **把层间信息汇聚到当前点。** 两侧特征分别从相邻等高线向当前采样点进行 Mamba 扫描，并在当前点融合。这样既能读取轮廓内外的视觉信息，也能记录不同层级之间的变化过程；等高线越密，通常表示该区域变化越快。
-
-5. **沿等高线进行双向扫描。** 将同一条等高线上的采样点按照真实轮廓顺序排列，分别沿两个方向传播。对于闭合轮廓，可以在结构变化明显的位置设置汇集点，两个方向最终在该位置融合，形成整条等高线的状态。
-
-6. **按照拓扑关系传播状态。** 同一层级中的独立等高线并行处理，不强行排序；不同层级之间则按照轮廓的延续、分裂和汇合关系传递状态。
-
-7. **完成图像分类。** 汇聚各条等高线经过拓扑传播后的状态，再送入分类头得到结果。
-
-## 分支状态传播
-
-等高线随着层级变化会产生不同的拓扑关系，模型分别处理：
-
-1. **延续：** 一条等高线演化为下一层的一条等高线时，上一条轮廓的状态传给下一条轮廓，并与新轮廓自身的扫描结果融合。
-
-2. **分裂：** 一条父轮廓分裂成多个子轮廓时，父状态分别传入各个分支，每个子轮廓再结合自己的特征独立更新。不同分支保留共同来源，但不会得到完全相同的状态。
-
-3. **汇合：** 多条轮廓汇合时，模型根据各分支与新轮廓的关系，对多个父状态进行加权融合，再交给汇合后的轮廓继续传播。
-
-分裂不是简单复制，汇合也不是直接求和，而是由可训练的门控决定各部分信息的保留比例。对于分类任务，还可以分别从低层级向高层级、从高层级向低层级传播，最后融合两个方向的结果。
-
-## 整体结构
+A topology-guided Vision Mamba that gathers features along contour normals, scans closed contours in parallel, propagates states through nested contour branches, and aggregates peak states by intensity.
 
 
-1. 图像特征与分层等高线
-                
-2. 等高线稀疏采样
-                
-3. 相邻等高线之间的法线扫描
-                
-4. 等高线双向扫描与汇集
-                
-5. 延续、分裂和汇合状态传播
-                
-6. 全局汇聚与图像分类
+## TopoContour-Mamba
 
+### 项目简介
 
-法线 Mamba 负责相邻层级之间的变化，等高线 Mamba 负责同层轮廓内部的关系，拓扑传播模块负责全局结构。扫描方向由图像内容决定，而不是固定的横向、纵向或蛇形路径。
+TopoContour-Mamba 尝试让图像自身的空间结构决定 Mamba 的扫描顺序。图像先被转换为结构强度图，再按照统一的层级间隔提取闭合等高线。等高线的层级和包含关系形成从外层低强度区域到内层高强度峰值的拓扑结构。
 
-## 后续扩展
+模型先沿法线把外侧区域的信息汇聚到等高线采样点，再让所有闭合等高线独立进行双向 Mamba 扫描。每个圈产生一个局部状态后，拓扑 Mamba 沿包含关系从低层到高层递归汇集；不同峰值产生的最终状态再按照峰值强度从低到高扫描，形成用于分类的全局状态。
 
-- **可训练的结构图：** 使用卷积模块生成与输入尺寸对应的结构图，再利用软化的层级表示连接后续采样模块，使分类损失能够回传到结构图生成网络。早期版本也可以固定这部分，只训练特征提取、Mamba、分支门控和分类头。
+### 方法流程
 
-- **主方向环扫描：** 以等高线采样点为中心建立多层同心环，用局部主方向统一每个环的起止和汇集位置，先沿环进行双向 Mamba 扫描，再按照从外到内的顺序把各环状态汇聚到中心，并可通过只在关键点启用或降低外环采样密度来减少重叠开销。
+1. **生成分层等高线。** 从结构强度图中提取多个等间隔层级的闭合等高线，并根据空间包含关系构建等高线森林。外层圈是父节点，内部更高层的圈是子节点；图像边框作为最外层轮廓的虚拟边界。
 
-- **层间稠密扫描：** 在相邻等高线之间加入横向和纵向扫描，补充稀疏法线没有读取到的区域。稠密位置得到的状态先汇聚到附近的等高线采样点，再进入轮廓扫描和拓扑传播。
+2. **在等高线上稀疏采样。** 按照真实弧长选择采样点，并从浅层特征图中读取颜色、纹理和边缘特征。轮廓弯曲越明显、当前圈与外侧相邻等高线的距离越小，采样越密；平滑且层间距离较大的区域采样更稀。
 
-- **自适应采样：** 根据轮廓弯曲程度、特征变化和等高线密度调整采样点数量。复杂区域保留更多 Token，平滑区域减少计算。
+3. **沿法线汇聚外侧信息。** 从当前采样点沿直线法线找到外侧最近的等高线，再从外侧等高线向当前点运行法线 Mamba。最终状态作为当前采样点的 Token。最外层圈没有外侧等高线时，从虚拟图像边界向当前点扫描。所有法线任务共享参数并可并行执行。
 
-# TopoContour-Mamba
+4. **并行扫描所有闭合等高线。** 每个圈选择一个汇集点，默认使用与外侧相邻等高线距离最小的位置；如果无法稳定确定，则使用曲率较大的位置。顺时针和逆时针 Mamba 从同一汇集点出发，分别绕完整个圈后回到该点。两个方向读取顺序相反，在扫描过程中不交换隐藏状态，只在汇集点融合最终结果，产生该圈的局部状态 \(h_C\)。所有圈先独立完成扫描，因此不同圈可以并行处理。
 
-## Overview
+5. **沿等高线森林递归汇集。** 所有圈得到局部状态后，拓扑 Mamba 从最低层外圈开始，按照包含关系向内部高层传播。每个节点结合父历史状态和自己的 \(h_C\) 进行更新；如果一个父圈包含多个子圈，所有子圈继承同一个父历史状态，再根据各自的局部状态独立更新。递归继续到各个叶子节点，每个热力图峰值最终得到一个分支状态 \(h_{peak}\)。
 
-TopoContour-Mamba explores how the spatial structure of an image can guide the scan order of Mamba. An image is first converted into a structural intensity map, from which contours are extracted at multiple levels. The contour levels define the order of structural change, while disconnected contours at the same level remain parallel because they have no natural temporal order.
+6. **按照峰值强度完成分类。** 只保留各个叶子节点的 \(h_{peak}\)，并使用叶子区域内部的最高热力图响应表示峰值强度。将所有峰值状态从低强度到高强度排列，再交给最终 Mamba 扫描。最后一个隐藏状态作为整张图像的表示，并送入分类头。
 
-The model focuses on three spatial relationships: normal-direction scans capture changes between neighboring contours, contour scans integrate information along the same contour, and topology-guided propagation carries states through contour continuation, splitting, and merging. Existing methods can be used to generate the structural map and contours in the initial version; the main focus is the subsequent sampling, aggregation, and Mamba state propagation.
+### 并行方式
 
-## Method
+TopoContour-Mamba 将局部视觉扫描和全局拓扑汇集分开处理：
 
-1. **Extract multi-level contours.** Obtain contours at multiple uniformly spaced levels so that the distance between neighboring contours reflects the strength of local structural variation.
+1. 所有法线任务并行产生采样点 Token；
+2. 所有闭合等高线独立并行产生局部状态；
+3. 拓扑 Mamba 按树的深度从低层到高层传播，同一父节点下的子分支并行更新；
+4. 少量峰值状态按照强度顺序完成最终扫描。
 
-2. **Sample points sparsely along each contour.** Select points according to true arc length and read color, texture, and edge features from a shallow feature map. More points can be retained in complex regions, while smooth regions use fewer visual tokens.
+顺时针和逆时针扫描可以共享模型参数，但维护相互独立的隐藏状态。父历史状态只用于拓扑汇集，不进入前面的独立轮廓扫描，因此不会阻止所有圈并行编码。
 
-3. **Connect neighboring contours along the normal direction.** From each contour point, extend in both normal directions until reaching the nearest contours at the adjacent upper and lower levels. The normal segment therefore follows the actual spacing between contours instead of using a fixed local window.
+### 整体结构
 
-4. **Aggregate inter-level information at the contour point.** Features on both sides are scanned from the neighboring contours toward the current point and fused there. This captures visual information inside and outside the contour together with the transition between contour levels; densely packed contours usually indicate faster local variation.
+```text
+1. 结构强度图与闭合等高线森林
+                  ↓
+2. 外侧等高线 → 当前采样点的法线扫描
+                  ↓
+3. 所有圈独立进行完整的双向闭环扫描
+                  ↓
+4. 每个圈产生局部状态 h_C
+                  ↓
+5. 沿包含关系从低层递归到各个峰值
+                  ↓
+6. 每个峰值产生分支状态 h_peak
+                  ↓
+7. 按峰值强度从低到高扫描
+                  ↓
+8. 最终状态 h → 图像分类
+```
 
-5. **Scan bidirectionally along each contour.** Arrange sampled points in their true contour order and propagate information in both directions. For a closed contour, a structurally informative point can be selected as the aggregation point, where the two directional states are fused into a contour representation.
+### 后续扩展
 
-6. **Propagate states through contour topology.** Independent contours at the same level are processed in parallel, while states across levels follow actual continuation, split, and merge relationships.
+- **可训练的结构图：** 使用卷积模块生成与输入尺寸对应的结构强度图，再利用软化的层级表示连接后续采样，使分类损失能够回传到结构图生成网络。
 
-7. **Perform image classification.** Aggregate the topology-aware contour states and pass the resulting representation to a classification head.
+- **主方向环扫描：** 以等高线采样点为中心建立多层同心环，用局部主方向统一每个环的起止和汇集位置，先沿环进行双向 Mamba 扫描，再按照从外到内的顺序把各环状态汇聚到中心。
 
-## Branch-State Propagation
+- **层间稠密扫描：** 在相邻等高线之间加入横向和纵向扫描，补充稀疏法线没有读取到的区域，再把稠密状态汇聚到附近的等高线采样点。
 
-Contour topology changes across levels in three main ways:
+- **可训练采样策略：** 将当前由曲率和等高线距离控制的采样密度替换为可训练策略，使模型根据任务动态选择采样位置。
 
-1. **Continuation:** When one contour evolves into another contour at the next level, its state is passed forward and fused with the new contour's own scan result.
+- **树形并行扫描：** 进一步研究拓扑 Mamba 的树形并行算法，减少不同等高线深度之间的顺序等待。
 
-2. **Split:** When one parent contour divides into several child contours, the parent state is passed to every branch. Each child then updates it using its own features, preserving their shared origin while allowing different representations.
+## TopoContour-Mamba
 
-3. **Merge:** When several contours merge, their parent states are weighted according to their relationships with the new contour and then fused before propagation continues.
+### Overview
 
-Splitting is not treated as simple state copying, and merging is not handled by direct summation. Trainable gates determine how much information should be preserved from each branch. For classification, topology propagation may also be performed in both low-to-high and high-to-low level directions before the two results are fused.
+TopoContour-Mamba lets the spatial structure of each image determine the scan order of Mamba. An image is first converted into a structural intensity map, from which closed contours are extracted at uniformly spaced levels. Their levels and containment relationships form a topology from low-intensity outer regions to high-intensity inner peaks.
 
-## Architecture
+The model first gathers outside information into contour points through normal-direction scans and then encodes every closed contour independently with bidirectional Mamba. After each contour produces a local state, a topology Mamba recursively aggregates these states from lower to higher levels. The final states of different peaks are ordered from low to high peak intensity and scanned again to form the global representation for classification.
 
+### Method
 
-1. Image features and multi-level contours
-                    
-2. Sparse contour sampling
-                    
-3. Normal scans between neighboring contours
-                    
-4. Bidirectional contour scanning and aggregation
-                    
-5. Continuation, split, and merge state propagation
-                    
-6. Global aggregation and image classification
+1. **Build a multi-level contour forest.** Extract closed contours at uniformly spaced levels and construct their containment relationships. An outer contour becomes the parent of the higher-level contours inside it. The image border is treated as a virtual boundary for the outermost contours.
 
+2. **Sample each contour sparsely.** Select points according to true arc length and read color, texture, and edge features from a shallow feature map. Sampling becomes denser where curvature is higher or the distance to the outside neighboring contour is smaller, while smooth and widely spaced regions use fewer tokens.
 
-The normal Mamba models changes between neighboring levels, the contour Mamba models relationships within each contour, and the topology module models the global structure. The scan order is determined by image content rather than fixed horizontal, vertical, or snake-like paths.
+3. **Gather outside information along contour normals.** From each contour point, follow its straight normal to the nearest outside contour, and run a normal Mamba from that outer contour toward the current point. The final state becomes the token of the current contour point. For an outermost contour, the scan starts from the virtual image boundary. All normal scans share parameters and can run in parallel.
 
-## Future Extensions
+4. **Scan all closed contours independently.** Each contour selects an aggregation point, by default where its distance to the outside neighboring contour is smallest; a high-curvature point is used when this position cannot be determined reliably. Clockwise and counterclockwise Mamba streams start from the same point, traverse the complete contour, and return to that point. The two streams process opposite orders without exchanging hidden states and fuse only at the aggregation point, producing a local contour state \(h_C\). Since every contour is encoded independently, all contour scans can run in parallel.
 
-- **Trainable structural map:** A convolutional module can generate a same-resolution structural map, while softened level representations connect it to the sampling stage so that the classification loss can propagate back to the map generator. The initial version can keep this stage fixed and train only the feature extractor, Mamba modules, branch gates, and classifier.
+5. **Aggregate states recursively through the contour forest.** After all local contour states are available, a topology Mamba starts from the lowest-level outer contours and follows the containment structure toward higher levels. Each node updates the inherited parent history with its own \(h_C\). If one parent contains several child contours, every child receives the same parent history and then evolves independently using its local state. The recursion ends at the leaves, producing one branch state \(h_{peak}\) for each heatmap peak.
 
-- **Principal-direction ring scanning:** Concentric rings are built around a contour sample point, a local principal direction aligns the start, end, and aggregation position of every ring, bidirectional Mamba scans are first performed along each ring, and the resulting states are then propagated from the outer rings toward the center, with ring scans activated only at key points or sampled more sparsely on outer rings to reduce overlap.
+6. **Aggregate peaks for classification.** Keep only the leaf states \(h_{peak}\), and define peak intensity using the highest heatmap response inside each leaf region. Sort the peak states from low to high intensity and process them with a final Mamba. Its last hidden state represents the image and is passed to the classification head.
 
-- **Dense inter-contour scanning:** Horizontal and vertical scans can be added inside the regions between neighboring contours to capture information missed by sparse normal segments. The dense states are first aggregated into nearby contour points before entering contour scanning and topology propagation.
+### Parallel Execution
 
-- **Adaptive sampling:** The number of contour samples can be adjusted according to curvature, feature variation, and contour density. Complex regions retain more tokens, while smooth regions use less computation.
+TopoContour-Mamba separates local visual encoding from global topology aggregation:
 
+1. All normal scans generate contour-point tokens in parallel;
+2. All closed contours independently generate local states in parallel;
+3. The topology Mamba propagates from lower to higher tree depths, while sibling branches update in parallel;
+4. A short sequence of peak states is scanned in intensity order.
+
+The clockwise and counterclockwise streams may share model parameters while maintaining independent hidden states. Parent histories are used only by the topology Mamba and do not enter the earlier independent contour scans, allowing all contours to be encoded in parallel.
+
+### Architecture
+
+```text
+1. Structural intensity map and closed-contour forest
+                         ↓
+2. Normal scans from outside contours to sampled points
+                         ↓
+3. Independent bidirectional full-loop scans for all contours
+                         ↓
+4. One local state h_C for each contour
+                         ↓
+5. Recursive low-to-high propagation through containment branches
+                         ↓
+6. One branch state h_peak for each peak
+                         ↓
+7. Low-to-high peak-intensity scan
+                         ↓
+8. Final state h → image classification
+```
+
+### Future Extensions
+
+- **Trainable structural map:** A convolutional module can generate a same-resolution structural intensity map, while softened level representations connect it to the sampling stage and allow the classification loss to reach the map generator.
+
+- **Principal-direction ring scanning:** Concentric rings are built around a contour point, a local principal direction aligns the start, end, and aggregation position of each ring, bidirectional Mamba scans encode every ring, and the ring states are propagated from the outside toward the center.
+
+- **Dense inter-contour scanning:** Horizontal and vertical scans can be introduced between neighboring contours to capture regions missed by sparse normal segments, after which the dense states are aggregated into nearby contour points.
+
+- **Trainable sampling strategy:** The current curvature- and spacing-based sampling density can be replaced by a learned strategy that dynamically selects sampling locations for each task.
+
+- **Parallel tree scan:** A tree-parallel topology Mamba can be explored to reduce sequential waiting across contour depths.
