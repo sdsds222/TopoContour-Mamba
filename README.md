@@ -11,7 +11,7 @@ This repository provides a versioned public record of the initial TopoContour-Ma
 
 [English paper](output/pdf/TopoContour-Mamba-English.pdf) · [中文论文](output/pdf/TopoContour-Mamba-Chinese.pdf)
 
-![TopoContour-Mamba route](figures/topocontour_paper_figure.png)
+![TopoContour-Mamba route](output/figures/topocontour_paper_figure.png)
 
 ## English
 
