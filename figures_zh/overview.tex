@@ -1,0 +1,21 @@
+\begin{tikzpicture}[
+    font=\scriptsize,
+    box/.style={draw=MidnightBlue,rounded corners=2pt,minimum height=0.70cm,minimum width=2.65cm,align=center,fill=Blue!6},
+    arr/.style={-{Latex[length=1.8mm]},thick,draw=MidnightBlue},
+    note/.style={font=\tiny,align=center,text=black!65}
+]
+\node[box] (image) at (0,0) {原始RGB图像与\\传统显著性场};
+\node[box] (tree) at (3.25,0) {Sobel场与\\增广等高线树};
+\node[box] (sample) at (0,-1.25) {均匀试探点确定\\方向、密度和 $p_0$};
+\node[box] (local) at (3.25,-1.25) {原图法线与\\双向轮廓扫描};
+\node[box] (agg) at (0,-2.50) {低到高Tree Mamba\\分裂/无序汇合};
+\node[box] (final) at (3.25,-2.50) {带Tag叶子、最终Mamba\\与分类器};
+\draw[arr] (image)--(tree);
+\draw[arr] (tree.south) to[out=-90,in=25] (sample.north east);
+\draw[arr] (sample)--(local);
+\draw[arr] (local.south) to[out=-90,in=25] (agg.north east);
+\draw[arr] (agg)--(final);
+\node[note,below=0.08cm of sample] {点数固定};
+\node[note,below=0.08cm of local] {所有轮廓并行};
+\node[note,below=0.08cm of agg] {只传带Tag轮廓 $y$};
+\end{tikzpicture}

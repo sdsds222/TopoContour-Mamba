@@ -1,0 +1,76 @@
+\section{Reference Configuration}
+
+\scriptsize
+
+Table~\ref{tab:route-defaults} gives a reproducible starting point, not tuned optima.
+
+\begin{center}
+\refstepcounter{table}\label{tab:route-defaults}
+\begin{minipage}{\columnwidth}
+\centering
+\small\textbf{Table \thetable:} Route defaults for a $224\times224$ image and $56\times56$ route grid.
+
+\vspace{2pt}
+\scriptsize
+\begin{tabular}{@{}p{0.43\columnwidth}p{0.49\columnwidth}@{}}
+\toprule
+Item & Default \\
+\midrule
+Saliency & frequency-tuned Lab; 1--99 percentile clip \\
+Smoothing & Gaussian, $\sigma=3$ input pixels \\
+Sobel & $3\times3$ on smoothed $S$; bilinear pilot lookup \\
+Boundary / cells & below-range frame / fixed NW--SE split \\
+Retained levels & 12 uniform interior levels \\
+Loop filter & perimeter $\geq12$, area $\geq8$; no persistence filter \\
+Point budget & $N_C=\max(16,\operatorname{round}(P_C/2))$; no upper cap \\
+Pilot count & $2N_C$ uniform points \\
+Ordinary side & lower side from mean signed normal Sobel response \\
+Strength smoothing & one circular $(1,2,3,2,1)/9$ convolution \\
+Density weight & $\operatorname{clip}(\bar g/(\operatorname{median}^{+}\bar g+\epsilon),1,3)$ \\
+Anchor $p_0$ & maximum smoothed unclipped $\bar g$; $(y,x)$ tie break \\
+Collision set & retained polylines plus padded frame; final points only \\
+Normal samples & uniform raw-image samples along each ray, clamped to 2--32 \\
+Terminal score & arc-weighted saliency mean over both actual ray sides \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+
+Each loop is oriented clockwise once. Uniform pilots read $r_i=G(u_i)^{\top}n_i$. The mean sign chooses the lower ordinary side; a zero mean uses the negative-normal side. The circularly smoothed magnitude sets density, and its largest unclipped value selects $p_0$. A flat loop uses uniform density and the coordinate tie break. Weighted cumulative arc length returns exactly $N_C$ unique points while keeping $p_0$. Only final points cast collision rays; start contact and incident contour segments are ignored. Dynamic power-of-two buckets continue beyond 256, and very long scans may be chunked without losing points.
+
+\begin{center}
+\refstepcounter{table}\label{tab:model-defaults}
+\begin{minipage}{\columnwidth}
+\centering
+\small\textbf{Table \thetable:} Initial model defaults.
+
+\vspace{2pt}
+\scriptsize
+\begin{tabular}{@{}p{0.47\columnwidth}p{0.45\columnwidth}@{}}
+\toprule
+Item & Default \\
+\midrule
+Token width / SSM state & 192 / 16 \\
+Input embedding & shared pointwise linear/MLP; no CNN stem \\
+Normal input & RGB, level/difference, $(x,y)$, progress, ray length \\
+Contour input & normal summary, RGB, $(x,y)$, level, arc support, ray geometry \\
+Normal / Contour / Tree blocks & 1 / 2 / 1 \\
+Expansion / local convolution & 2 / 4 \\
+Direction parameters & shared; concatenate, project, LayerNorm \\
+Cross-segment state & tagged $y$ only; never $h$ or cache \\
+Join prior & $\tfrac12\log(1+Q_i)$; zero-initialized learned gate \\
+Tags & normal, contour, segment, join, leaf, final, empty \\
+Length buckets & dynamic powers of two; optional exact chunking \\
+Empty route & projected RGB channel mean and variance \\
+Stochastic depth & 0.1 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+
+Every real sequence endpoint is tagged. A normal sequence starts at its collision and ends at its contour point. A contour sequence starts with an untagged $p_0$ and, after one traversal, ends on a tagged second copy of $p_0$. A tree source starts with a learned token; a segment ends on its last real contour. A terminal contour uses the result that combines its ordinary side, opposite side, first contour pass, and second contour pass. Every final leaf receives a leaf tag, and the last also receives a final tag, including the one-leaf case.
+
+\paragraph{Evaluation protocol.}
+An initial ImageNet-1K study can use AdamW for 300 epochs, batch size 1024, learning rate $10^{-3}$, 20-epoch warm-up with cosine decay, weight decay 0.05, label smoothing 0.1, gradient clipping 1.0, and three seeds. Recompute saliency and routes after spatial augmentation. Fixed-path baselines should match input projection, token width, Mamba blocks, training recipe, and full-grid or routed-token count. Ablate route/leaf order, sampling, terminal reads, local input, tree joins, tags, and hard/soft routing; report accuracy, tokens, latency, padding, ray overlap, and empty-route rate.
+
+\normalsize

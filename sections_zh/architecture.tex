@@ -1,0 +1,77 @@
+\section{架构}
+\label{sec:architecture}
+
+\subsection{直接读取原图的法线与轮廓编码}
+
+所有保留轮廓独立编码。任何父圈输出都不进入法线或闭环扫描。这是局部视觉读取与全局树汇总之间的明确分界。
+
+考虑层级为 $\lambda_C$ 的最终轮廓点 $p$。路线构建已经为整圈固定普通读取侧 $\sigma_C$。从 $p$ 向该侧发射射线，首次碰撞为 $q_p$。几何查询从 $p$ 找到 $q_p$，但Normal Mamba按相反方向读取，也就是从 $q_p$ 回到 $p$。
+
+对法线采样位置 $r$，记双线性读取的归一化RGB为 $c(r)$。输入还包含归一化图像坐标、$(\lambda_C,S(r)-\lambda_C)$、从碰撞点到轮廓点的相对进度，以及法线实际长度。共享逐点投影 $E_N$ 把这些值映射到模型宽度；它不是CNN，也不会混合相邻图像位置。最后的轮廓点 $p$ 加入法线终点Tag：
+\begin{equation}
+n_p=\NormalM\!\left(E_N[c,S-\lambda_C,\lambda_C,\hat x,\hat y,t,d]_{q_p\rightarrow p}
++e_{\mathrm{N,end}}@p\right)_p.
+\label{eq:normal-zh}
+\end{equation}
+带Tag输出 $n_p$ 是该条原图RGB法线序列的摘要。
+
+构造轮廓点Token时，仍直接加入端点RGB，而不要求 $n_p$ 无损保存它。共享投影 $E_C$ 把 $n_p$、$c(p)$、归一化坐标、$\lambda_C$、当前点代表的局部弧长，以及法线方向和长度组合成 $x_p$。坐标告诉Mamba点在二维图像中的位置；局部弧长则说明变密度采样后相邻Token的真实间距。
+
+设最终点为 $(p_0,\ldots,p_{N_C-1})$，其中 $p_0$ 是重采样时保留的Sobel锚点。闭合曲线没有天然起点，因此只在序列层面从 $p_0$ 切开，几何上仍保持闭环。两个方向都从不带轮廓终点Tag的 $p_0$ 开始。顺时针依次访问 $p_1$ 到 $p_{N_C-1}$；逆时针按相反顺序访问同一组点。最后都回到第二个 $p_0$，只有返回副本带轮廓终点Tag：
+\begin{align}
+X_C^{\circlearrowright}&=(x_{p_0},x_{p_1},\ldots,x_{p_{N_C-1}},x_{p_0}+e_{\mathrm{C,end}}),\\
+X_C^{\circlearrowleft}&=(x_{p_0},x_{p_{N_C-1}},\ldots,x_{p_1},x_{p_0}+e_{\mathrm{C,end}}).
+\end{align}
+每个非锚点在每个方向中出现一次；锚点分别作为不带Tag的开头和带Tag的结尾。两个带Tag返回位置的输出经拼接、投影和归一化得到局部轮廓Token $y_C$。Tag只固定读出位置，不保证无损记住全圈。终止圈还会保留两方向对齐后的逐点输出。
+
+\paragraph{终止圈的双侧读取。}
+若 $C$ 没有更高的有效后继，它就是该树枝最后一个保留圈。此时，普通侧法线和第一对闭环已经完成。每个点再向 $\sigma_C$ 的相反侧寻找首次碰撞，第二侧Normal Mamba同样从碰撞点读回带Tag的轮廓点 $p$。
+
+在每个 $p$ 上，把第二侧法线输出与第一次顺、逆时针闭环在该点的对齐输出融合。第一次闭环输出中已经包含普通侧法线信息。融合后的点再由同一Contour Mamba执行第二对闭环，继续使用同一个 $p_0$、同一组采样点、相反的环绕顺序和带Tag的返回终点。两个最终输出融合为 $y_C^{\mathrm{term}}$。因此终止结果同时包含两侧法线，而不是用另一侧替换普通侧。峰点、宽峰环和盆地边界都使用同一规则，不需要判断是否填充内部。
+
+法线、普通闭环和终止闭环都按真实长度分桶。填充位置放在真实带Tag终点之后并被屏蔽，读出始终索引真实终点。
+
+\subsection{Tree Mamba汇总}
+
+所有局部Token产生后，才从低到高处理 $T_A$。最大非分叉树段 $B$ 包含按标量值排列的轮廓 $(C_1,\ldots,C_r)$。共享Tree Mamba接收入口摘要和局部轮廓Token：
+\begin{equation}
+b_B=\MergeM\!\left(y_B^{\mathrm{in}},y_{C_1},\ldots,y_{C_r}+e_{\mathrm{seg}}\right)_r.
+\label{eq:branch-zh}
+\end{equation}
+终止圈在树段中使用 $y_C^{\mathrm{term}}$ 替换第一次的 $y_C$。树源使用可学习入口Token。最后一个真实轮廓带树段终点Tag；若它也是拓扑叶子，再加叶子Tag。跨树段只传递带Tag输出 $y$，不传隐藏状态、卷积缓存或其他循环状态。
+
+分裂鞍点把 $b_B$ 复制给各条输出树段。同一次分裂产生的兄弟支路不会在等高线树中再次汇合，因此不需要循环协调规则。
+
+汇合鞍点的输入来自不同低值源，没有天然顺序。设第 $i$ 条分支摘要为 $b_i$，其历史代表的唯一最终轮廓采样点数为 $Q_i$。采用考虑支撑量且与输入排列无关的融合：
+\begin{align}
+s_i&=\tfrac12\log(1+Q_i)+\Gate(\operatorname{LN}(b_i)),\\
+\alpha_i&=\frac{\exp(s_i)}{\sum_j\exp(s_j)},\qquad
+b_{\mathrm{join}}=\operatorname{LN}\!\left(W_J\sum_i\alpha_i b_i+e_{\mathrm{join}}\right).
+\label{eq:join-zh}
+\end{align}
+$\Gate$ 的末层采用零初始化，因此开始时近似按采样支撑量的平方根加权，之后再学习内容修正；整个过程不依赖不稳定的 $\|y\|$。同一算子适用于任意汇合度。
+
+\begin{figure}[t]
+    \centering
+    \input{figures_zh/topology}
+    \caption{树级汇总。分裂复制一个带Tag摘要；汇合以无序方式组合独立产生的分支。同一次分裂产生的兄弟支路不会在树中再次汇合。}
+    \label{fig:topology}
+\end{figure}
+
+\subsection{带Tag的最终读出}
+
+每条终止叶产生摘要 $\ell_k$。对终止轮廓的每个点，先在终止编码器实际使用的两侧法线上计算显著性均值，再按每个点代表的真实弧长组合这些分数，得到排序分数 $\rho_k$。这样不会因为某处采样更密就让它重复投票。
+
+叶子按 $\rho_k$ 从低到高排列。相同值依次用终止极值和质心坐标破平局。所有Token加入 $e_{\mathrm{leaf}}$，最后一个再加入 $e_{\mathrm{final}}$：
+\begin{equation}
+g=\MergeM\!\left(\ell_{\pi(1)}+e_{\mathrm{leaf}},\ldots,
+\ell_{\pi(K)}+e_{\mathrm{leaf}}+e_{\mathrm{final}}\right)_K.
+\label{eq:final-zh}
+\end{equation}
+只有一个叶子时也使用两个Tag。若没有轮廓通过过滤，则把原图RGB各通道的均值和方差进行投影：
+\begin{equation}
+g=\operatorname{LN}\!\left(W_0[\operatorname{Mean}(I),\operatorname{Var}(I)]+e_{\mathrm{empty}}\right).
+\end{equation}
+最后使用线性分类头输出类别。
+
+内部汇合与最终叶子排序承担不同功能。内部汇合是没有顺序的拓扑事件，必须使用无序融合；最终叶子只在全局读出时按实际读取显著性序列化一次，使较弱终止证据先进入、较强证据后进入。

@@ -1,0 +1,24 @@
+\begin{tikzpicture}[font=\scriptsize,scale=0.82,
+    node/.style={circle,draw=MidnightBlue,fill=Blue!7,minimum size=0.52cm,inner sep=0pt},
+    event/.style={diamond,draw=BrickRed,fill=Red!8,minimum size=0.62cm,inner sep=0pt},
+    arr/.style={-{Latex[length=1.6mm]},thick,draw=black!70}]
+\node[node] (s0) at (0,0) {$b_0$};
+\node[event] (split) at (0,-0.86) {S};
+\node[node] (a) at (-0.92,-1.78) {$b_a$};
+\node[node] (b) at (0.92,-1.78) {$b_b$};
+\node[node] (c) at (-2.15,-1.78) {$b_c$};
+\node[event] (join) at (-1.53,-2.72) {J};
+\node[node] (d) at (-1.53,-3.68) {$b_d$};
+\node[node] (ta) at (-1.53,-4.62) {$\ell_1$};
+\node[node] (tb) at (0.92,-4.62) {$\ell_2$};
+\draw[arr] (s0)--(split);
+\draw[arr] (split)--node[left,font=\tiny]{copy} (a);
+\draw[arr] (split)--node[right,font=\tiny]{copy} (b);
+\draw[arr] (c)--(join);
+\draw[arr] (a)--(join);
+\draw[arr] (join)--node[right,font=\tiny]{invariant fusion} (d);
+\draw[arr] (d)--(ta);
+\draw[arr] (b)--(tb);
+\node[align=left,anchor=west,text=black!65] at (1.40,-2.75) {siblings from S never rejoin;\\J combines independent sources};
+\node[align=center,text=black!65] at (-0.25,-5.22) {tagged leaves $\ell_1,\ell_2$ are sorted only at the final readout};
+\end{tikzpicture}

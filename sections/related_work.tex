@@ -1,0 +1,43 @@
+\section{Related Work}
+
+\subsection{Serialization in Visual State-Space Models}
+
+Selective state-space models operate on ordered sequences, so visual variants must choose both an adjacency pattern and a readout direction. Vim flattens image patches and uses bidirectional state-space blocks with positional information \cite{zhu2024vim}. VMamba's SS2D traverses the feature grid along four routes, combining multiple directional contexts while retaining dense grid coverage \cite{liu2024vmamba}. PlainMamba improves continuity through a designed continuous 2D traversal and direction-aware updating \cite{yang2024plainmamba}. LocalMamba partitions the grid into windows and searches for suitable scan choices at different layers, prioritizing short-range two-dimensional dependencies \cite{huang2024localmamba}. These methods make increasingly careful use of spatial adjacency, but their basic geometric primitives---rows, columns, continuous grid paths, or windows---are defined independently of the level-set structure of the current image.
+
+Several later models make the route itself content dependent. DAMamba learns scanning orders and regions through Dynamic Adaptive Scan \cite{li2025damamba}. QuadMamba predicts token locality and recursively partitions windows into quadrants; a Gumbel-Softmax masking mechanism supplies a straight-through training path for the discrete partition \cite{xie2024quadmamba}. For video super-resolution, MambaVSR builds semantic connectivity graphs, clusters related content, and interleaves temporal features along the resulting spatial order \cite{he2025mambavsr}. These systems are close to \method{} in rejecting a single fixed raster order. The distinction is the structured object being learned or extracted: they adapt permutations, regions, quadrants, or semantic groups, whereas \method{} derives closed level-set components and explicitly preserves their split/join evolution in a contour tree. Our initial route generator is deterministic rather than learned, so this difference is architectural and not a claim of greater adaptivity.
+
+PRISMamba is the closest geometric comparison. It partitions the image into concentric rings, performs order-agnostic aggregation within a ring, and propagates context between rings with short radial SSMs \cite{hsieh2026prismamba}. \method{} does not assume a common center or nested circular geometry. It may contain many disconnected and nonconvex contours at one level; each is scanned in both arc-length directions, while normal rays read adjacent bands and a separate contour tree controls global low-to-high aggregation. Thus PRISMamba organizes a dense grid by image-centered rings, whereas \method{} organizes sparse, input-specific level sets by scalar topology.
+
+\begin{center}
+\refstepcounter{table}\label{tab:comparison}
+\begin{minipage}{\columnwidth}
+\small\textbf{Table \thetable:} Representative visual serialization rules. The comparison concerns route structure, not Mamba's input-dependent gates.
+
+\vspace{2pt}
+\fontsize{7.3pt}{8.0pt}\selectfont
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.21\columnwidth}>{\raggedright\arraybackslash}p{0.25\columnwidth}>{\raggedright\arraybackslash}p{0.44\columnwidth}@{}}
+\toprule
+Method & Route & Key difference from ours \\
+\midrule
+Vim / VMamba & patch/grid directions & dense coordinates; no extracted level-set topology \\
+Plain-/\\LocalMamba & continuous paths or windows & improved continuity/locality within predefined grid primitives \\
+DAMamba / QuadMamba & learned orders, regions, or quadrants & trainable spatial organization without an explicit contour tree \\
+MambaVSR & semantic groups and graph order & content-aware restoration route rather than scalar level sets \\
+PRISMamba & concentric rings,\\radial SSMs & common-center geometry without split/join evolution \\
+Ours & normals, closed contours, and tree & separates band reading, loop encoding, and topological aggregation \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+
+\subsection{Saliency, Contours, and Topological Structure}
+
+Classical visual-attention models combine intensity, color, and orientation cues, while frequency-tuned saliency measures contrast in Lab space \cite{itti1998saliency,achanta2009frequency}. Such maps represent bottom-up conspicuity, not guaranteed task relevance. We use the frequency-tuned map only as a reproducible scalar field for the initial serialization experiment. A task-conditioned CNN field is discussed in Section~\ref{sec:future}; its training boundary must be stated carefully because hard contour extraction is discrete.
+
+Contour trees encode how connected components of level sets appear, continue, split, join, and disappear as a scalar threshold changes \cite{carr2003contourtrees}. Augmentation associates regular contours or mesh elements with tree arcs, and on-demand variants avoid materializing unnecessary geometry \cite{sharma2018augmentation,gueunet2019augmented}. Existing neural uses include contour-tree hierarchies and topology-guided maps for segmentation \cite{he2020contourtreegnn,adame2025topovmunet}. In contrast, \method{} does not predict a contour tree or use it only as a loss. The tree is a deterministic execution graph: regular contours define independent local Mamba sequences, and only their tagged outputs travel through the tree.
+
+Graph Mamba addresses the more general problem of ordering and encoding arbitrary graph neighborhoods \cite{behrouz2024graphmamba}. Our graph is narrower and more constrained. Scalar value gives every tree edge a low-to-high orientation; split and join semantics are known; and unsampled paths can be contracted without inventing nearest-neighbor links. This structure permits specialized operations---copy at a split, permutation-invariant fusion at a join, and Mamba along nonbranching segments---instead of applying one generic graph tokenization rule.
+
+\paragraph{Positioning of this work.}
+The novelty is therefore not ``using a different curve'' in isolation. It is the separation of three relations that previous scan designs usually conflate: first-hit normals determine local cross-level evidence, closed contours determine within-component order, and an augmented contour tree determines global information flow. Table~\ref{tab:comparison} records these distinctions; the contribution is methodological, not a claim of empirical superiority.

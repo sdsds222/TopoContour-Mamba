@@ -1,0 +1,57 @@
+\documentclass[UTF8,10pt,twocolumn,fontset=fandol]{ctexart}
+
+\usepackage[letterpaper,margin=0.72in,columnsep=0.22in]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs,array,multirow}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,shapes.geometric,backgrounds}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{url}
+\usepackage[colorlinks=true,allcolors=MidnightBlue,unicode=true]{hyperref}
+\hypersetup{
+    pdftitle={TopoContour-Mamba：基于增广等高线树的拓扑引导视觉序列化},
+    pdfauthor={Dian Yu},
+    pdfsubject={基于增广等高线树的显著性有序视觉状态空间建模},
+    pdfkeywords={Vision Mamba, 状态空间模型, 视觉显著性, 增广等高线树, 视觉序列化, 扫描顺序}
+}
+
+\setlist{nosep,leftmargin=*}
+\setlength{\emergencystretch}{2em}
+\newcommand{\method}{TopoContour-Mamba}
+\newcommand{\NormalM}{\mathcal{M}_{\mathrm{N}}}
+\newcommand{\ContourM}{\mathcal{M}_{\mathrm{C}}}
+\newcommand{\MergeM}{\mathcal{M}_{\mathrm{G}}}
+\newcommand{\Gate}{\mathcal{G}}
+\newcounter{algorithm}
+
+\title{\textbf{TopoContour-Mamba：\\基于增广等高线树的拓扑引导视觉序列化}}
+\author{Dian Yu\\独立研究者\\\url{https://github.com/sdsds222/}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\input{sections_zh/abstract}
+\input{sections_zh/introduction}
+\input{sections_zh/related_work}
+\input{sections_zh/serialization}
+\input{sections_zh/architecture}
+\input{sections_zh/algorithm}
+\input{sections_zh/analysis}
+\input{sections_zh/discussion}
+\input{sections_zh/future_work}
+\input{sections_zh/conclusion}
+
+\begingroup
+\fontsize{9pt}{9.5pt}\selectfont
+\bibliographystyle{plain}
+\bibliography{references}
+\endgroup
+
+\appendix
+\input{sections_zh/appendix}
+
+\end{document}

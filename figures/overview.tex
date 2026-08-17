@@ -1,0 +1,21 @@
+\begin{tikzpicture}[
+    font=\scriptsize,
+    box/.style={draw=MidnightBlue,rounded corners=2pt,minimum height=0.70cm,minimum width=2.65cm,align=center,fill=Blue!6},
+    arr/.style={-{Latex[length=1.8mm]},thick,draw=MidnightBlue},
+    note/.style={font=\tiny,align=center,text=black!65}
+]
+\node[box] (image) at (0,0) {Raw RGB image and\\traditional saliency};
+\node[box] (tree) at (3.25,0) {Sobel field and\\augmented contour tree};
+\node[box] (sample) at (0,-1.25) {Side, density, and $p_0$\\from uniform pilots};
+\node[box] (local) at (3.25,-1.25) {Raw-pixel normal and\\bidirectional contour scans};
+\node[box] (agg) at (0,-2.50) {Low-to-high Tree Mamba\\split / invariant join};
+\node[box] (final) at (3.25,-2.50) {Tagged leaves, final Mamba,\\and classifier};
+\draw[arr] (image)--(tree);
+\draw[arr] (tree.south) to[out=-90,in=25] (sample.north east);
+\draw[arr] (sample)--(local);
+\draw[arr] (local.south) to[out=-90,in=25] (agg.north east);
+\draw[arr] (agg)--(final);
+\node[note,below=0.08cm of sample] {fixed point count};
+\node[note,below=0.08cm of local] {all contours parallel};
+\node[note,below=0.08cm of agg] {tagged contour $y$ only};
+\end{tikzpicture}

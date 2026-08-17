@@ -1,0 +1,76 @@
+\section{参考配置}
+
+\footnotesize
+
+表~\ref{tab:route-defaults}给出一组可复现的起始配置，并非调优后的最优值。
+
+\begin{center}
+\refstepcounter{table}\label{tab:route-defaults}
+\begin{minipage}{\columnwidth}
+\centering
+\small\textbf{表 \thetable：}$224\times224$ 原图和 $56\times56$ 路线网格的默认参数。
+
+\vspace{2pt}
+\scriptsize
+\begin{tabular}{@{}p{0.43\columnwidth}p{0.49\columnwidth}@{}}
+\toprule
+项目 & 默认值 \\
+\midrule
+显著性 & 频率调谐Lab；1--99百分位截断 \\
+平滑 & 高斯，原图尺度 $\sigma=3$ 像素 \\
+Sobel & 平滑 $S$ 上的 $3\times3$ 核；试探点双线性读取 \\
+边界/剖分 & 一圈低值边框/固定西北--东南对角线 \\
+保留层级 & 12个内部均匀层级 \\
+小圈过滤 & 周长 $\geq12$，面积 $\geq8$；无持久性过滤 \\
+点数预算 & $N_C=\max(16,\operatorname{round}(P_C/2))$；无上限 \\
+试探点 & $2N_C$ 个弧长均匀点 \\
+普通读取侧 & 平均带符号法线Sobel响应所指示的低值侧 \\
+强度平滑 & 一次闭环 $(1,2,3,2,1)/9$ 卷积 \\
+密度权重 & $\operatorname{clip}(\bar g/(\operatorname{median}^{+}\bar g+\epsilon),1,3)$ \\
+锚点 $p_0$ & 最大平滑未截断 $\bar g$；按 $(y,x)$ 破平局 \\
+碰撞集合 & 保留轮廓折线与补边框；仅最终点查询 \\
+法线样本 & 沿射线均匀读取原图，样本数限制为2--32 \\
+叶子分数 & 两侧实际法线读取的弧长加权显著性均值 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+
+每个圈统一定向为顺时针。均匀试探点读取 $r_i=G(u_i)^{\top}n_i$：平均符号选择低值普通侧，闭环平滑后的绝对强度决定密度，最大未截断强度确定 $p_0$。平均符号为零时选择负法线侧；整圈强度为零时使用均匀密度和坐标破平局。累计加权弧长返回恰好 $N_C$ 个唯一位置并保留 $p_0$。只有最终点执行碰撞查询，且忽略起点接触和本圈相邻线段。动态二次幂长度桶可以超过256；极长序列可在不丢点的前提下精确分块。
+
+\begin{center}
+\refstepcounter{table}\label{tab:model-defaults}
+\begin{minipage}{\columnwidth}
+\centering
+\small\textbf{表 \thetable：}初始模型默认参数。
+
+\vspace{2pt}
+\scriptsize
+\begin{tabular}{@{}p{0.47\columnwidth}p{0.45\columnwidth}@{}}
+\toprule
+项目 & 默认值 \\
+\midrule
+Token宽度/SSM状态宽度 & 192 / 16 \\
+输入嵌入 & 共享逐点线性层或MLP；无CNN Stem \\
+法线输入 & RGB、层级/差值、$(x,y)$、进度、法线长度 \\
+轮廓输入 & 法线摘要、RGB、$(x,y)$、层级、弧长支撑、法线几何 \\
+Normal/Contour/Tree层数 & 1 / 2 / 1 \\
+扩张率/局部卷积宽度 & 2 / 4 \\
+方向参数 & 共享；拼接、投影、LayerNorm \\
+跨树段状态 & 仅带Tag的 $y$；不传 $h$ 或缓存 \\
+汇合先验 & $\tfrac12\log(1+Q_i)$；学习门末层零初始化 \\
+Tag种类 & 法线、轮廓、树段、汇合、叶子、最终、空路线 \\
+长度桶 & 动态二次幂；可选精确分块 \\
+空路线 & 原图RGB通道均值和方差的投影 \\
+随机深度 & 0.1 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+
+每条真实序列终点都带Tag。法线序列从碰撞点开始，在轮廓点结束；闭环序列从不带Tag的 $p_0$ 开始，完整绕圈后在带Tag的第二个 $p_0$ 结束。树源使用可学习Token，树段在最后一个真实轮廓结束。终止圈的最终Token同时包含普通侧、相反侧、第一次闭环和第二次闭环信息。所有最终叶子都带叶子Tag，最后一个再带最终Tag；单叶同样执行最终扫描。
+
+\paragraph{评估建议。}
+首轮ImageNet-1K实验可使用AdamW训练300轮，批量1024，学习率 $10^{-3}$，20轮预热和余弦衰减，权重衰减0.05，标签平滑0.1，梯度裁剪1.0，并报告三个随机种子。空间增强后重新计算显著性与路线。固定路线基线应匹配输入投影、Token宽度、Mamba层数、训练方案以及全网格或路由Token数。消融路线/叶子顺序、采样、终止双侧读取、局部输入、树汇合、Tag和硬/软路线；同时报告精度、Token数、延迟、填充率、射线重叠与空路线比例。
+
+\normalsize

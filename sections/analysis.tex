@@ -1,0 +1,19 @@
+\section{Structural Analysis}
+\label{sec:analysis}
+
+\paragraph{Image-dependent pseudo-time.}
+Fixed raster or cross scans serialize pixels by coordinates. \method{} lets a saliency field determine closed local routes and their low-to-high tree order. Weak regions enter the global history earlier and salient regions later, placing stronger evidence closer to the final tagged readout. Selective state updates may retain broad early context while emphasizing later evidence, but this is an inductive bias, not a guarantee about Mamba's memory.
+
+\paragraph{Three separate relations.}
+Normal rays read the band next to a contour, bidirectional loops integrate one connected component, and the augmented contour tree aggregates across scalar levels. A ray collision never defines ancestry, and a parent summary never enters a local contour encoder. The tree may contain splits and joins, but its acyclicity means that siblings created by one split cannot later rejoin; a join combines branches with independent lower origins.
+
+\paragraph{One Sobel signal, three decisions.}
+For each uniform pilot, the signed normal Sobel response tells which side increases saliency. Averaging its sign gives one ordinary side for the whole loop. Its smoothed magnitude controls density, and the strongest position fixes $p_0$. These roles use the same local measurement but different parts of it. The rule is simple and avoids pilot-stage collision searches. It also couples two biases: a strong transition receives more samples and lies near the tagged loop endpoint. This intended emphasis must be tested against uniform sampling and independent anchors.
+
+\paragraph{Fixed-budget raw-pixel sampling.}
+Perimeter fixes how many contour points are available; Sobel weights only move them. Weighted cumulative arc length concentrates a fixed budget near strong cross-contour changes without allowing one region to create extra tokens. RGB is then sampled from the original image, so the model does not inherit locality from a CNN stem. Coordinates, level, ray progress, ray length, and local arc support tell Mamba what the irregular raw-pixel sequence means geometrically. Arc-length weighting also prevents dense regions from dominating terminal saliency scores merely because they contain more points.
+
+\paragraph{Cost and parallelism.}
+Selective-scan work is linear in the number of routed samples: ordinary and terminal ray samples, two directions for each contour pass, tree-segment tokens, and final leaf tokens. It is not necessarily linear in image pixels. Route construction adds saliency, Sobel, contour-tree, and final collision-query costs; for $V$ route-grid vertices, standard contour-tree construction is typically $O(V\log V)$ before output-sensitive refinements \cite{carr2003contourtrees}. Many short irregular sequences, padding, and tree synchronization may reduce GPU utilization despite linear token complexity.
+
+A fair comparison must match token width and training recipe, include raw-pixel or token-matched baselines, and report deterministic route construction in end-to-end latency. Routed-token count and asymptotic complexity alone do not predict wall-clock speed.

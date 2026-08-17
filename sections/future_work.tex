@@ -1,0 +1,10 @@
+\section{Extensions}
+\label{sec:future}
+
+The following variants extend the initial architecture:
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=1pt]
+    \item \textbf{Trainable structural map:} an end-to-end or separately trained convolutional module outputs an input-sized structural-intensity map.
+    \item \textbf{Dominant-direction ring scan:} replace each normal ray with concentric rings around its contour sample. A local dominant direction fixes their common start, return, and aggregation point. Bidirectional Mamba scans each ring, then aggregates the ring states from outside to inside at the center.
+    \item \textbf{Inter-level dense scan:} horizontal and vertical scans between adjacent contours cover regions missed by sparse normals, and their states are aggregated into nearby contour samples. Each contour is also sampled pixel by pixel.
+    \item \textbf{Dense level sampling:} use gap-free successive contour levels, remove normal scans, and scan only densely placed contour samples.
+\end{itemize}

@@ -1,0 +1,58 @@
+\documentclass[10pt,twocolumn]{article}
+
+\usepackage[letterpaper,margin=0.72in,columnsep=0.22in]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs,array,multirow}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,shapes.geometric,backgrounds}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{url}
+\usepackage[colorlinks=true,allcolors=MidnightBlue]{hyperref}
+\hypersetup{
+    pdftitle={TopoContour-Mamba: Topology-Guided Visual Serialization with Augmented Contour Trees},
+    pdfauthor={Dian Yu},
+    pdfsubject={Saliency-ordered visual state space modeling with augmented contour trees},
+    pdfkeywords={Vision Mamba, state space model, visual saliency, augmented contour tree, visual serialization, scan order}
+}
+
+\setlist{nosep,leftmargin=*}
+\setlength{\emergencystretch}{2em}
+\newcommand{\method}{TopoContour-Mamba}
+\newcommand{\NormalM}{\mathcal{M}_{\mathrm{N}}}
+\newcommand{\ContourM}{\mathcal{M}_{\mathrm{C}}}
+\newcommand{\MergeM}{\mathcal{M}_{\mathrm{G}}}
+\newcommand{\Gate}{\mathcal{G}}
+\newcommand{\vect}[1]{\mathbf{#1}}
+\newcounter{algorithm}
+
+\title{\textbf{TopoContour-Mamba: Topology-Guided Visual Serialization\\with Augmented Contour Trees}}
+\author{Dian Yu\\Independent Researcher\\\url{https://github.com/sdsds222/}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/related_work}
+\input{sections/serialization}
+\input{sections/architecture}
+\input{sections/algorithm}
+\input{sections/analysis}
+\input{sections/discussion}
+\input{sections/future_work}
+\input{sections/conclusion}
+
+\begingroup
+\fontsize{8.5pt}{9pt}\selectfont
+\bibliographystyle{plain}
+\bibliography{references}
+\endgroup
+
+\appendix
+\input{sections/appendix}
+
+\end{document}

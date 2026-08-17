@@ -1,0 +1,25 @@
+\begin{tikzpicture}[scale=0.76,font=\scriptsize,
+    arr/.style={-{Latex[length=1.8mm]},thick},
+    pt/.style={circle,fill=MidnightBlue,inner sep=1.35pt}]
+\draw[thick,Blue!70] (0,0) ellipse (2.25 and 1.58);
+\draw[thick,ForestGreen!75!black] (0.12,0.02) ellipse (1.30 and 0.84);
+\draw[thick,BrickRed!55] (0.12,0.02) ellipse (0.55 and 0.34);
+\node[text=Blue!80!black] at (-1.42,1.29) {outer collision contour};
+\node[text=ForestGreen!60!black] at (-0.48,-0.72) {current contour};
+\node[text=BrickRed!80!black] at (0.08,0.29) {inner collision};
+\foreach \a in {20,52,88,130,185,238,292,332}{
+  \node[pt] at ({0.12+1.30*cos(\a)},{0.02+0.84*sin(\a)}) {};
+}
+\coordinate (p) at (1.42,0.02);
+\coordinate (qout) at (2.25,0.02);
+\coordinate (qin) at (0.67,0.02);
+\node[circle,fill=Red,inner sep=1.7pt,label={[font=\tiny]below:$p$}] at (p) {};
+\node[circle,fill=Orange,inner sep=1.5pt,label={[font=\tiny]above:$q_{\rm ord}$}] at (qout) {};
+\node[circle,fill=BrickRed,inner sep=1.5pt,label={[font=\tiny]below:$q_{\rm opp}$}] at (qin) {};
+\draw[arr,Orange!90!black] (qout)--(p);
+\draw[arr,BrickRed!85] (qin)--(p);
+\draw[arr,ForestGreen!80!black] (0.12,0.86) arc[start angle=90,end angle=-265,x radius=1.30,y radius=0.84];
+\draw[arr,Purple!85] (0.12,0.86) arc[start angle=90,end angle=445,x radius=1.30,y radius=0.84];
+\node[circle,fill=Red,inner sep=1.7pt,label={[font=\tiny]above right:{$p_0$ / return Tag}}] at (0.12,0.86) {};
+\node[align=center] at (0,-1.96) {ordinary side on every contour; opposite side added at terminal contours};
+\end{tikzpicture}

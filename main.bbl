@@ -1,0 +1,105 @@
+\begin{thebibliography}{10}
+
+\bibitem{achanta2009frequency}
+Radhakrishna Achanta, Sheila~S. Hemami, Francisco Estrada, and Sabine
+  S{\"u}sstrunk.
+\newblock Frequency-tuned salient region detection.
+\newblock In {\em IEEE Conference on Computer Vision and Pattern Recognition},
+  pages 1597--1604, 2009.
+
+\bibitem{adame2025topovmunet}
+Diego Adame, Jose~A. Nunez, Fabian Vazquez, Nayeli Gurrola, Huimin Li, Haoteng
+  Tang, Bin Fu, and Pengfei Gu.
+\newblock Topo-vm-unetv2: Encoding topology into vision mamba unet for polyp
+  segmentation.
+\newblock {\em arXiv preprint arXiv:2505.06210}, 2025.
+
+\bibitem{behrouz2024graphmamba}
+Ali Behrouz and Farnoosh Hashemi.
+\newblock Graph mamba: Towards learning on graphs with state space models.
+\newblock {\em arXiv preprint arXiv:2402.08678}, 2024.
+
+\bibitem{carr2003contourtrees}
+Hamish Carr, Jack Snoeyink, and Ulrike Axen.
+\newblock Computing contour trees in all dimensions.
+\newblock {\em Computational Geometry}, 24(2):75--94, 2003.
+
+\bibitem{gu2023mamba}
+Albert Gu and Tri Dao.
+\newblock Mamba: Linear-time sequence modeling with selective state spaces.
+\newblock In {\em Conference on Language Modeling}, 2024.
+
+\bibitem{gueunet2019augmented}
+Charles Gueunet, Pierre Fortin, Julien Jomier, and Julien Tierny.
+\newblock Task-based augmented contour trees with fibonacci heaps.
+\newblock {\em IEEE Transactions on Parallel and Distributed Systems},
+  30(8):1889--1905, 2019.
+
+\bibitem{he2025mambavsr}
+Linfeng He, Meiqin Liu, Qi~Tang, Chao Yao, and Yao Zhao.
+\newblock Mambavsr: Content-aware scanning state space model for video
+  super-resolution.
+\newblock {\em arXiv preprint arXiv:2506.11768}, 2025.
+
+\bibitem{he2020contourtreegnn}
+Wenchong He, Arpan~Man Sainju, Zhe Jiang, and Da~Yan.
+\newblock Deep neural network for 3d surface segmentation based on contour tree
+  hierarchy.
+\newblock {\em arXiv preprint arXiv:2008.11269}, 2020.
+
+\bibitem{hsieh2026prismamba}
+Yi-Kuan Hsieh, Jun-Wei Hsieh, Xin Li, Ming-Ching Chang, and Yu-Chee Tseng.
+\newblock Partial ring scan: Revisiting scan order in vision state space
+  models.
+\newblock {\em arXiv preprint arXiv:2602.04170}, 2026.
+
+\bibitem{huang2024localmamba}
+Tao Huang, Xiaohuan Pei, Shan You, Fei Wang, Chen Qian, and Chang Xu.
+\newblock Localmamba: Visual state space model with windowed selective scan.
+\newblock In {\em European Conference on Computer Vision Workshops}, 2024.
+
+\bibitem{itti1998saliency}
+Laurent Itti, Christof Koch, and Ernst Niebur.
+\newblock A model of saliency-based visual attention for rapid scene analysis.
+\newblock {\em IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  20(11):1254--1259, 1998.
+
+\bibitem{li2025damamba}
+Tanzhe Li, Caoshuo Li, Jiayi Lyu, Hongjuan Pei, Baochang Zhang, Taisong Jin,
+  and Rongrong Ji.
+\newblock Damamba: Vision state space model with dynamic adaptive scan.
+\newblock In {\em Advances in Neural Information Processing Systems}, 2025.
+
+\bibitem{liu2024vmamba}
+Yue Liu, Yunjie Tian, Yuzhong Zhao, Hongtian Yu, Lingxi Xie, Yaowei Wang,
+  Qixiang Ye, Jianbin Jiao, and Yunfan Liu.
+\newblock Vmamba: Visual state space model.
+\newblock In {\em Advances in Neural Information Processing Systems}, 2024.
+
+\bibitem{sharma2018augmentation}
+Mohit Sharma and Vijay Natarajan.
+\newblock On-demand augmentation of contour trees.
+\newblock In {\em 11th Indian Conference on Computer Vision, Graphics and Image
+  Processing}, pages 104:1--104:8, 2018.
+
+\bibitem{xie2024quadmamba}
+Fei Xie, Weijia Zhang, Zhongdao Wang, and Chao Ma.
+\newblock Quadmamba: Learning quadtree-based selective scan for visual state
+  space model.
+\newblock In {\em Advances in Neural Information Processing Systems}, 2024.
+
+\bibitem{yang2024plainmamba}
+Chenhongyi Yang, Zehui Chen, Miguel Espinosa, Linus Ericsson, Zhenyu Wang,
+  Jiaming Liu, and Elliot~J. Crowley.
+\newblock Plainmamba: Improving non-hierarchical mamba in visual recognition.
+\newblock In {\em British Machine Vision Conference}, 2024.
+
+\bibitem{zhu2024vim}
+Lianghui Zhu, Bencheng Liao, Qian Zhang, Xinlong Wang, Wenyu Liu, and Xinggang
+  Wang.
+\newblock Vision mamba: Efficient visual representation learning with
+  bidirectional state space model.
+\newblock In {\em Proceedings of the 41st International Conference on Machine
+  Learning}, 2024.
+
+\end{thebibliography}

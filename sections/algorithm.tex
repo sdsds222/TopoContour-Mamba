@@ -1,0 +1,27 @@
+\section{Forward Pass and Parallel Execution}
+\label{sec:algorithm}
+
+Route planning is deterministic in the initial model and finishes before any Mamba scan. The complete forward pass is:
+
+\begin{figure}[t]
+\refstepcounter{algorithm}\label{alg:topocontour}
+\small
+\noindent\textbf{Algorithm \thealgorithm: Forward pass of \method}
+\vspace{2pt}\hrule\vspace{3pt}
+\begin{enumerate}[label=\arabic*.,leftmargin=1.5em,itemsep=1.5pt]
+    \item Normalize the RGB image, compute the deterministic saliency field, smooth it, and compute one Sobel field.
+    \item Build the full contour tree on the padded piecewise-linear saliency field. Extract retained contours, filter tiny loops, insert valid loops on tree arcs, and contract paths with no sampled contour.
+    \item For each contour, orient it clockwise and set its point budget from perimeter. Uniform pilots sample the signed normal Sobel response: its mean selects one low-saliency ordinary side, its smoothed magnitude sets density, and its maximum selects $p_0$.
+    \item Starting at $p_0$, redistribute exactly the fixed point budget by weighted arc length. At final points only, find the first collision on the chosen ordinary side.
+    \item Sample raw RGB and route metadata along every ordinary ray. Scan from collision to the tagged contour point, build contour-point tokens, and scan both loop directions from $p_0$ to a tagged return, obtaining $y_C$.
+    \item For every terminal contour, also scan the opposite-side rays. Fuse them pointwise with the first-pass contour outputs, then repeat the two $p_0$-to-tagged-return loops to obtain $y_C^{\rm term}$.
+    \item Process the sparse tree from low to high. Tree Mamba scans nonbranching segments; splits copy tagged $y$, and joins use support-aware invariant fusion.
+    \item Score terminal leaves from saliency on both normal sides actually read, with arc-length support weights. Sort leaves from low to high and scan them with the final Merge Mamba.
+    \item If no contour survives, project raw RGB channel means and variances. Return the classifier output.
+\end{enumerate}
+\vspace{2pt}\hrule
+\end{figure}
+
+Variable-length rays, loops, and tree segments are grouped into dynamic length buckets. Padding follows the true tagged endpoint and is masked. All normal rays and local contour encoders are independent and can be batched across levels. Tree segments at the same ready frontier can also run in parallel. The only sequential dependencies are within one ray or loop, along low-to-high tree edges, and in the final leaf sequence. Long contours use larger buckets or exact chunked scans rather than truncation or geometric stretching.
+
+Only tagged $y$ vectors cross tree-segment boundaries. Splits copy a vector, not parameters, hidden states, or recurrent caches. The raw-pixel projections and all Mamba modules are trainable in the initial model; the traditional saliency operator, Sobel decisions, contour extraction, and hard tree remain detached route construction. A future saliency CNN would therefore require a separate soft training path.

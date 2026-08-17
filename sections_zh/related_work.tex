@@ -1,0 +1,43 @@
+\section{相关工作}
+
+\subsection{视觉状态空间模型的序列化}
+
+选择性状态空间模型接收有序序列，因此视觉模型必须同时决定空间邻接与读出方向。Vim把图像Patch展平，并结合位置编码使用双向状态空间块 \cite{zhu2024vim}。VMamba的SS2D沿四条路线遍历特征网格，在保持稠密网格覆盖的同时组合多方向上下文 \cite{liu2024vmamba}。PlainMamba用连续二维路线改善相邻Token的空间连续性，并加入方向感知更新 \cite{yang2024plainmamba}。LocalMamba把网格分成局部窗口，并为不同网络层搜索合适的扫描选择，以加强短程二维依赖 \cite{huang2024localmamba}。这些方法逐步改善了空间邻接，但基本几何单元仍是行列、连续网格路径或窗口，并不来自当前图像等值线的连通结构。
+
+后续工作开始让路线随内容变化。DAMamba通过Dynamic Adaptive Scan学习扫描顺序和区域 \cite{li2025damamba}。QuadMamba预测Token局部性并递归划分窗口象限，以Gumbel-Softmax掩码和直通估计器训练离散分区 \cite{xie2024quadmamba}。面向视频超分辨率的MambaVSR构建语义连通图、聚类相关内容，再沿所得空间顺序交织时域特征 \cite{he2025mambavsr}。它们与\method{}一样反对所有图像共享单一栅格顺序，但所组织的对象不同：前述方法调整排列、区域、象限或语义组；本文提取闭合等值线分量，并在等高线树中显式保留其分裂与汇合演化。初版路线是确定性的，因此这里只主张架构差异，不声称适应性更强。
+
+PRISMamba是最接近的几何对照。它把图像划分为同心环，在每个环内做与次序无关的聚合，再用短径向SSM在环之间传递上下文 \cite{hsieh2026prismamba}。\method{}不假设统一中心或同心圆结构：同一层可以有多个不相连、非凸的轮廓，每圈沿弧长双向扫描；法线负责读取邻带，独立的等高线树负责全局低到高汇总。因此，PRISMamba按图像中心组织稠密环，而本文按标量拓扑组织稀疏、随输入变化的等高线。
+
+\begin{center}
+\refstepcounter{table}\label{tab:comparison}
+\begin{minipage}{\columnwidth}
+\small\textbf{表 \thetable：}代表性视觉序列化规则。比较对象是路线结构，而不是Mamba门控本身。
+
+\vspace{2pt}
+\fontsize{7.3pt}{8.0pt}\selectfont
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.21\columnwidth}>{\raggedright\arraybackslash}p{0.25\columnwidth}>{\raggedright\arraybackslash}p{0.44\columnwidth}@{}}
+\toprule
+方法 & 路线 & 与本文的关键区别 \\
+\midrule
+Vim / VMamba & Patch/网格方向 & 稠密坐标路线，不提取等值线拓扑 \\
+Plain-/\\LocalMamba & 连续路径或窗口 & 在预设网格单元内改善连续性或局部性 \\
+DAMamba / QuadMamba & 学习顺序、区域或象限 & 可训练空间组织，但无显式等高线树 \\
+MambaVSR & 语义分组与图顺序 & 面向复原的内容路线，而非标量等值集 \\
+PRISMamba & 同心环、\\径向SSM & 统一中心，不描述分裂与汇合演化 \\
+本文 & 法线、闭合轮廓与树 & 分离邻带读取、圈内编码和拓扑汇总 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{center}
+
+\subsection{显著性、轮廓与拓扑结构}
+
+经典视觉注意模型组合亮度、颜色与方向线索，频率调谐显著性则在Lab空间测量对比度 \cite{itti1998saliency,achanta2009frequency}。这类热力图表示自底向上的醒目程度，不保证等同于任务语义重要性。本文初版使用频率调谐方法，只为序列化实验提供可复现的标量场；任务相关CNN将在第~\ref{sec:future}节讨论。由于硬轮廓提取是离散过程，必须明确其梯度边界。
+
+等高线树记录标量阈值变化时，等值线连通分量如何出现、延续、分裂、汇合和消失 \cite{carr2003contourtrees}。增广操作把常规轮廓或网格元素关联到树弧，按需增广可避免生成不需要的几何对象 \cite{sharma2018augmentation,gueunet2019augmented}。已有神经网络工作把等高线树层次或拓扑图用于分割 \cite{he2020contourtreegnn,adame2025topovmunet}。本文既不预测等高线树，也不只把它作为损失；它是确定性执行图：常规轮廓定义相互独立的局部Mamba序列，只有完成后的带Tag输出在树上传递。
+
+Graph Mamba处理任意图邻域的排序和状态空间编码 \cite{behrouz2024graphmamba}。本文使用的图更窄，也更受约束：标量值天然给每条树边低到高的方向，分裂与汇合语义已知，未采样路径可收缩而无需虚构最近邻连接。因此可以为不同事件使用专门算子——分裂复制、汇合无序融合、非分叉树段运行Mamba——而不是套用统一的通用图Token规则。
+
+\paragraph{本文定位。}
+创新点并非孤立地“换一条曲线”，而是把现有扫描设计常混在一起的三种关系分开：首次碰撞法线决定局部跨层证据，闭合等高线决定分量内部顺序，增广等高线树决定全局信息走向。表~\ref{tab:comparison}陈述这些架构差异；本文贡献属于方法层面，不是实证优势声明。

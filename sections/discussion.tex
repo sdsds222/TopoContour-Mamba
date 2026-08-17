@@ -1,0 +1,12 @@
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+The initial frequency-tuned field measures bottom-up contrast, not task relevance. Low-to-high therefore means saliency order rather than known semantic importance. Section~\ref{sec:future} outlines a trainable CNN replacement for the route field, while keeping a clear gradient boundary around hard topology.
+
+The geometric defaults are intentionally simple: one heatmap smoothing step, one circular Sobel-strength smoothing step, a small-loop filter, and no persistence simplification. Fine branches can remain in the full topology without receiving scan tokens. This saves computation but may discard useful detail. The padded rectangle makes a contour tree valid; masked domains with holes require a Reeb graph, and plateaus require deterministic symbolic tie handling.
+
+Direct RGB sampling removes a CNN feature stem, but it also removes built-in local texture aggregation. The model sees only pixels reached by its rays and contours. Sparse routes can miss evidence between them, and capped ray length can reduce coverage. Patch sampling, a shallow feature adapter, and extra local scans are therefore useful baselines or extensions rather than hidden parts of the initial model.
+
+Tagged $y$ is a compact interface, not proof of complete memory. Compressing a long branch into one vector may lose evidence, and copying it at a split does not create different prior histories. Terminal contours read both sides, but their rays can overlap in bowls or nonconvex regions. The shared Sobel rule also gives strong transitions both denser samples and a position near the tagged contour endpoint. Ablations should separate these effects.
+
+Finally, irregular short sequences can be less efficient than a regular raster despite Mamba's linear scan. Saliency computation, contour construction, collision queries, empty-route frequency, padding overhead, and actual latency are necessary for any empirical comparison. The contribution here is the complete route construction and structural analysis, not measured gains in accuracy, robustness, memory, or throughput. The human-reading analogy is a motivation, not a biological claim.

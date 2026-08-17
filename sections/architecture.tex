@@ -1,0 +1,77 @@
+\section{Architecture}
+\label{sec:architecture}
+
+\subsection{Raw-Pixel Normal and Contour Encoding}
+
+All retained contours are encoded independently. No parent output enters a normal ray or a contour loop. This is the boundary between local visual reading and global tree aggregation.
+
+Consider a final contour point $p$ at retained level $\lambda_C$. Route construction has already fixed the ordinary side $\sigma_C$. Casting from $p$ on that side finds the first collision $q_p$. Geometry is found from $p$ to $q_p$, but Normal Mamba reads the samples in reverse, from $q_p$ back to $p$.
+
+For a ray sample $r$, let $c(r)$ be bilinearly sampled normalized RGB. Its input also contains normalized image coordinates, the pair $(\lambda_C,S(r)-\lambda_C)$, its progress from collision to contour, and the physical ray length. A shared pointwise projection $E_N$ maps these values to the model width. This projection is not a CNN and does not mix neighboring image locations. The last sample $p$ receives a normal-end tag:
+\begin{equation}
+n_p=\NormalM\!\left(E_N[c,S-\lambda_C,\lambda_C,\hat x,\hat y,t,d]_{q_p\rightarrow p}
++e_{\mathrm{N,end}}@p\right)_p.
+\label{eq:normal}
+\end{equation}
+The tagged output $n_p$ summarizes the RGB sequence along that ray.
+
+The contour-point token keeps a direct path for the endpoint RGB instead of asking $n_p$ to preserve it perfectly. A shared projection $E_C$ combines $n_p$, $c(p)$, normalized coordinates, $\lambda_C$, the local arc-length support, and the ray direction and length into $x_p$. Coordinates are needed because sequence order alone does not reveal two-dimensional position, and local arc length is needed because adaptive neighbors are not equally spaced.
+
+Let the final points be $(p_0,\ldots,p_{N_C-1})$, where $p_0$ is the Sobel anchor retained during resampling. A closed curve has no natural first token, so we cut only its serialized order at $p_0$. Both loop directions begin with an untagged copy of $p_0$. The clockwise scan visits $p_1$ through $p_{N_C-1}$; the counterclockwise scan visits the same points in reverse. Each returns to a second copy of $p_0$, and only that return carries the contour-end tag:
+\begin{align}
+X_C^{\circlearrowright}&=(x_{p_0},x_{p_1},\ldots,x_{p_{N_C-1}},x_{p_0}+e_{\mathrm{C,end}}),\\
+X_C^{\circlearrowleft}&=(x_{p_0},x_{p_{N_C-1}},\ldots,x_{p_1},x_{p_0}+e_{\mathrm{C,end}}).
+\end{align}
+Every nonanchor point appears once in each direction. The anchor has a distinct opening position and tagged closing position. The two outputs at the tagged returns are concatenated, projected, and normalized into one local contour token $y_C$. The tag fixes the readout position; it does not guarantee lossless memory. We also retain the aligned per-point outputs from both directions for terminal contours.
+
+\paragraph{Both-side terminal encoding.}
+If $C$ has no active higher successor, it is the last retained contour on that tree branch. Its ordinary-side ray and first pair of contour loops have already been computed. Each point now casts a second ray on the side opposite $\sigma_C$. This ray also starts at its first collision and ends at the same tagged contour point $p$.
+
+At each $p$, we fuse the opposite-side Normal Mamba output with the aligned clockwise and counterclockwise outputs from the first contour pass. Those first-pass outputs already contain the ordinary-side ray information. The fused points are scanned by a second pair of Contour Mamba loops using the same $p_0$, the same sample set, opposite traversal orders, and tagged returns. Their final fusion gives $y_C^{\mathrm{term}}$. The terminal result therefore contains both normal sides, not one side replacing the other. The same rule covers a peak point, a broad peak ring, and a basin boundary; no interior-fill case is needed.
+
+Normal rays, ordinary loops, and terminal loops are batched by true length. Padding is placed after the tagged endpoint and masked. Readout always indexes the true endpoint.
+
+\subsection{Tree Mamba Aggregation}
+
+Only after every local token is available do we process $T_A$ from low to high saliency. A maximal nonbranching tree segment $B$ contains retained contours $(C_1,\ldots,C_r)$ in scalar order. A shared Tree Mamba $\MergeM$ receives an incoming summary followed by the local contour tokens:
+\begin{equation}
+b_B=\MergeM\!\left(y_B^{\mathrm{in}},y_{C_1},\ldots,y_{C_r}+e_{\mathrm{seg}}\right)_r.
+\label{eq:branch}
+\end{equation}
+For a terminal contour, $y_C^{\mathrm{term}}$ replaces its first-pass $y_C$. At a source, $y_B^{\mathrm{in}}$ is a learned source token. The last real contour carries the segment-end tag; a topological leaf also carries a leaf tag. Only tagged output vectors $y$ cross segment boundaries. Hidden SSM states and convolution caches never cross a junction.
+
+At a split saddle, $b_B$ is copied to each outgoing segment. In a contour tree, the resulting siblings cannot later rejoin each other, so no recurrent reconciliation rule is needed.
+
+At a join saddle, incoming branches have independent lower origins and no natural order. Let $b_i$ summarize branch $i$, and let $Q_i$ be the number of unique final contour points represented by that branch history. We use a support-aware permutation-invariant gate:
+\begin{align}
+s_i &= \tfrac12\log(1+Q_i)+\Gate(\operatorname{LN}(b_i)),\\
+\alpha_i &= \frac{\exp(s_i)}{\sum_j\exp(s_j)},\qquad
+b_{\mathrm{join}}=\operatorname{LN}\!\left(W_J\sum_i\alpha_i b_i+e_{\mathrm{join}}\right).
+\label{eq:join}
+\end{align}
+The final layer of $\Gate$ is initialized to zero. Fusion starts from a square-root-like support prior and then learns content corrections without using the unstable norm of $y$. The same operator handles any join degree.
+
+\begin{figure}[t]
+    \centering
+    \resizebox{\columnwidth}{!}{\input{figures/topology}}
+    \caption{Tree-level aggregation. A split copies one tagged summary. A join fuses independently born branches without imposing an arbitrary order; siblings of the same earlier split cannot rejoin in a tree.}
+    \label{fig:topology}
+\end{figure}
+
+\subsection{Tagged Terminal Readout}
+
+Every terminal leaf produces a tagged summary $\ell_k$. For each point on its terminal contour, we average saliency over both normal rays actually used by the terminal encoder. We then combine point scores with their physical arc-length supports. This gives an ordering score $\rho_k$ without letting a dense sampling region vote more often merely because it contains more points.
+
+Terminal summaries are sorted by increasing $\rho_k$. Ties use the terminal extremum value and then centroid coordinates. Every token receives $e_{\mathrm{leaf}}$; the last also receives $e_{\mathrm{final}}$:
+\begin{equation}
+g=\MergeM\!\left(\ell_{\pi(1)}+e_{\mathrm{leaf}},\ldots,
+\ell_{\pi(K)}+e_{\mathrm{leaf}}+e_{\mathrm{final}}\right)_K.
+\label{eq:final}
+\end{equation}
+Even one leaf uses both tags. If no loop survives, we project the per-channel mean and variance of the raw RGB image:
+\begin{equation}
+g=\operatorname{LN}\!\left(W_0[\operatorname{Mean}(I),\operatorname{Var}(I)]+e_{\mathrm{empty}}\right).
+\end{equation}
+A linear head predicts the class from $g$.
+
+An internal join and the final leaf order serve different purposes. A join is an unordered topological event and uses invariant fusion. Terminal leaves are serialized once by measured read saliency so that weaker terminal evidence enters before stronger evidence at the global readout.
