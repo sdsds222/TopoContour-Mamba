@@ -30,18 +30,7 @@ The current version specifies the complete mechanism and reference defaults. It 
 5. **Aggregate through the tree.** Tree Mamba processes tagged contour outputs from low to high saliency. Splits copy a summary, while joins use permutation-invariant, support-aware fusion.
 6. **Produce the image representation.** Terminal leaves are ordered by saliency measured on their actual reads. A final Mamba produces the global vector `g`, which is passed to a linear classifier. An RGB-statistics projection handles the empty-route case.
 
-### Repository contents
 
-- English and Chinese LaTeX paper sources
-- Final bilingual PDFs
-- Route-visualization script: [`scripts/generate_topocontour_demo.py`](scripts/generate_topocontour_demo.py)
-
-Build the papers with:
-
-```bash
-tectonic main.tex --keep-logs --keep-intermediates
-tectonic main_zh.tex --keep-logs --keep-intermediates
-```
 
 ## 中文
 
@@ -60,10 +49,5 @@ TopoContour-Mamba研究如何把随图像变化的结构强度场转化为适合
 5. **沿树汇总：**Tree Mamba从低显著性向高显著性处理带Tag的轮廓输出；分裂时复制摘要，汇合时使用与输入顺序无关、考虑采样支撑量的融合。
 6. **生成图像表示：**根据终止叶子实际读取区域的显著性确定顺序，最终Mamba输出全局向量 `g`，再交给线性分类头。没有有效轮廓时，使用RGB均值和方差的投影作为保底输出。
 
-### 仓库内容
 
-- 中英文LaTeX论文源文件
-- 中英文最终PDF
-- 路线示意图生成脚本：[`scripts/generate_topocontour_demo.py`](scripts/generate_topocontour_demo.py)
 
-作者：Dian Yu（独立研究者）、Haoyu Yang
